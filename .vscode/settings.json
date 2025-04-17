@@ -1,0 +1,13 @@
+{
+    "idf.pythonInstallPath": "/usr/bin/python",
+    "files.associations": {
+        "inttypes.h": "c",
+        "spi.h": "c",
+        "spi_common.h": "c",
+        "esp_log.h": "c",
+        "freertos.h": "c",
+        "stdio.h": "c"
+    },
+    "idf.flashType": "UART",
+    "idf.port": "/dev/ttyUSB0"
+}
