@@ -76,6 +76,10 @@
 #define LGRAYBLUE       0XA651      /* 浅灰蓝色(中间层颜色) */ 
 #define LBBLUE          0X2B12      /* 浅棕蓝色(选择条目的反色) */ 
 
+#define TFT_NOT_FILLED	0
+#define TFT_IS_FILLED		1
+#define xy_SWAP(a,b) 	do{int temp = *(a);*(a) = *(b); *(b) = temp;}while(0)
+
 extern spi_device_handle_t spi_tft_handle;
 
 /* LCD重要参数集 */
@@ -107,3 +111,9 @@ void lcd_display_on(spi_device_handle_t spi);
 void lcd_display_off(spi_device_handle_t spi);
 
 void lcd_draw_point(uint16_t x, uint16_t y, uint16_t color);
+void lcd_draw_line(uint16_t x_start, uint16_t x_end,uint16_t y_start ,uint16_t y_end,uint16_t color);
+void lcd_draw_circle(uint16_t A, uint16_t B, uint16_t r, uint16_t color,uint8_t filled);
+void lcd_draw_rectangle(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t color,uint8_t filled);
+void lcd_draw_hline(uint16_t x, uint16_t y, uint16_t len, uint16_t color);
+void lcd_fill(uint16_t sx, uint16_t sy, uint16_t ex, uint16_t ey, uint16_t color);
+void lcd_show_char(uint16_t x, uint16_t y, uint32_t chr, uint8_t size, uint8_t mode, uint16_t color);

@@ -26,11 +26,21 @@ void app_main(void)
     lcd_init(spi_tft_handle);
     ESP_LOGI(TAG, "ALL initialized");
 
-    for (int i = 10; i < 100; i++)
-    {
-        //画点
-        lcd_draw_point(i, i,BLACK);
-    }
+    //画直线
+    lcd_draw_line(10,10,0,310,BLACK);
+    lcd_draw_line(0,220,300,300,BLACK);
+    lcd_draw_line(10,150,200,10,BLACK);
+    //画圆
+    lcd_draw_circle(100,100,80,WHITE,TFT_NOT_FILLED);
+    
+    lcd_draw_circle(150,150,80,WHITE,TFT_IS_FILLED);
+
+    //画矩形
+    lcd_draw_rectangle(50,50,200,200,WHITE,TFT_IS_FILLED);
+    //显示一个字符
+    ESP_LOGI(TAG,"START");
+    lcd_show_char(50,50,'A',16,0,BLACK);
+    ESP_LOGI(TAG,"END");
 //    xTaskCreatePinnedToCore(tft_show,"tft_lcd",2048,NULL,5,NULL,0);
 }  
 

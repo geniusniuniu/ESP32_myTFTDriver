@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include "SPI.h"
+#include "lcdFont.h"
 
 static const char *TAG = "SPI";
 spi_device_handle_t spi_tft_handle = NULL;
@@ -306,4 +307,306 @@ void lcd_draw_point(uint16_t x, uint16_t y, uint16_t color)
     lcd_set_cursor(x, y);       /* 设置光标位置 */
     lcd_write_ram_prepare();    /* 开始写入GRAM */
     lcd_data(spi_tft_handle, (uint8_t *)&color, 2); /* 写入点的颜色 */
+}
+
+void lcd_draw_line(uint16_t x_start, uint16_t x_end,uint16_t y_start ,uint16_t y_end,uint16_t color)
+{
+    uint8_t yflag = 0, xyflag = 0;
+    int delta_x ;
+    int delta_y ;
+    int incrE ;
+    int incrNE ;
+    int d;  //初始误差
+    int x;
+    int y;
+   
+    // 确保坐标在显示范围内  
+    assert((x_start < LCD_H_RES && x_end < LCD_H_RES) && (y_start < LCD_V_RES && y_end < LCD_V_RES) && " position must in 240*320 ");
+
+    //确定画线方向
+    if (x_end - x_start == 0)   //垂直线
+    {
+        if(y_end < y_start){xy_SWAP(&y_start,&y_end);}  //交换首尾坐标
+        for(; y_start < y_end; y_start++)
+        {
+            lcd_draw_point(x_start, y_start, color);
+        }
+    } else if (y_end - y_start == 0)    //水平线
+    {
+        if(x_end < x_start){xy_SWAP(&x_start,&x_end);}  //交换首尾坐标
+        for(;x_start < x_end; x_start++)
+        {
+            lcd_draw_point(x_start, y_start, color);
+        }
+    }
+    else    // 画斜线 
+    {
+        if(x_start > x_end)
+        {
+            /*交换两点坐标*/
+			/*交换后不影响画线，但是画线方向由第一、二、三、四象限变为第一、四象限*/
+            xy_SWAP(&x_start,&x_end);
+            xy_SWAP(&y_start,&y_end);
+        }  
+        if(y_start > y_end)
+        {
+            /*将Y坐标取负*/
+			/*取负后影响画线，但是画线方向由第一、四象限变为第一象限*/
+            y_start = -y_start;
+            y_end = -y_end;
+            /*置标志位yflag，记住当前变换，在后续实际画线时，再将坐标换回来*/
+            yflag = 1;
+        }
+        if(y_end -y_start > x_end - x_start)    //直线斜率大于1
+        {
+            /*将X坐标与Y坐标互换*/
+			/*互换后影响画线，但是画线方向由第一象限0~90度范围变为第一象限0~45度范围*/
+            xy_SWAP(&x_start,&y_start);
+            xy_SWAP(&x_end,&y_end);
+            /*置标志位xyflag，记住当前变换，在后续实际画线时，再将坐标换回来*/
+            xyflag = 1;
+        }
+
+        /*使用Bresenham算法画直线*/
+		/*算法要求，画线方向必须为第一象限0~45度范围*/
+        delta_x = x_end - x_start;
+        delta_y = y_end - y_start;
+        incrE = 2 * delta_y;
+		incrNE = 2 * (delta_y - delta_x);
+        d = 2*delta_y - delta_x;  //初始误差
+        x = x_start;
+        y = y_start;
+
+        /*画起始点，同时判断标志位，将坐标换回来*/
+        if(yflag && xyflag)            lcd_draw_point(y, -x, color);
+        else if(yflag)                      lcd_draw_point(x, -y, color);
+        else if(!yflag && xyflag)   lcd_draw_point(y, x, color);
+        else                                    lcd_draw_point(x, y, color);
+
+        while(x < x_end)
+        {    
+            x++;
+            if(d < 0)   //选择E
+            {
+                d += incrE;
+            }
+            else    //选择NE
+            {
+                y++;
+                d += incrNE;
+            }
+            /*画点，同时判断标志位，将坐标换回来*/
+            if(yflag && xyflag)            lcd_draw_point(y, -x, color);
+            else if(yflag)                      lcd_draw_point(x, -y, color);
+            else if(!yflag && xyflag)   lcd_draw_point(y, x, color);
+            else                                    lcd_draw_point(x, y, color);
+        }
+    }
+    ESP_LOGI(TAG, "Draw Line OK!");     
+}  
+
+//在指定区域填充颜色
+// (sx,sy),(ex,ey):填充矩形对角坐标,区域大小为:(ex - sx + 1) * (ey - sy + 1)
+void lcd_fill(uint16_t sx, uint16_t sy, uint16_t ex, uint16_t ey, uint16_t color)
+{
+    uint16_t i, j;
+    uint16_t xlen = ex - sx + 1;
+    uint8_t *color_copy = ( uint8_t*)&color;
+    uint8_t color_data[8] = {color_copy[0], color_copy[1], color_copy[0], color_copy[1],color_copy[0], color_copy[1], color_copy[0], color_copy[1]};
+    for (i = sy; i <= ey; i++)
+    {
+        lcd_set_cursor(sx, i);      /* 设置光标位置 */
+        lcd_write_ram_prepare();    /* 开始写入GRAM */
+
+        for (j = 0; j < xlen/4+0.5; j++)
+        {
+            lcd_data(spi_tft_handle,color_data,8);     /* 写入数据 */
+        }
+    }
+}
+
+void lcd_draw_rectangle(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t color,uint8_t filled)
+{
+    if(filled == TFT_NOT_FILLED)
+    {
+        //只画出边框
+        lcd_draw_line(x1, x2, y1, y1, color); //上边框
+        lcd_draw_line(x1, x2, y2, y2, color); //下边框
+        lcd_draw_line(x1, x1, y1, y2, color); //左边框
+        lcd_draw_line(x2, x2, y1, y2, color); //右边框 
+    }
+    else
+    {
+        //填充矩形
+        lcd_fill(x1, y1, x2, y2, color);
+    }
+}
+
+//画水平线
+void lcd_draw_hline(uint16_t x, uint16_t y, uint16_t len, uint16_t color)
+{
+    if ((len == 0) || (x > lcd_tft.width) || (y > lcd_tft.height))return;
+    uint8_t *color_copy = ( uint8_t*)&color;
+    uint8_t color_data[4] = {color_copy[0], color_copy[1], color_copy[0], color_copy[1]};
+  
+    lcd_set_cursor(x, y);      /* 设置光标位置 */
+    lcd_write_ram_prepare();    /* 开始写入GRAM */
+    for(int i = 0;i<len/2+0.5;i++)
+    {
+        lcd_data(spi_tft_handle,color_data,4);     /* 写入数据 */
+    }
+}
+
+//画圆
+void lcd_draw_circle(uint16_t A, uint16_t B, uint16_t r, uint16_t color,uint8_t filled)
+{
+    // 确保坐标在显示范围内
+    assert((A+r < LCD_H_RES) && (B+r < LCD_V_RES) && " position must in 240*320 ");
+    assert((A-r > 0) && (B-r > 0) && " position must in 240*320 ");
+    if(filled == TFT_NOT_FILLED)
+    {
+        int d = 1-r;
+        int X=0;
+        int Y=r;
+
+        //先画出x，y轴上的点
+        //x轴正方向
+        lcd_draw_point(A+0, B+r, color);
+        //x轴负方向
+        lcd_draw_point(A-0, B-r, color);
+        //y轴正方向
+        lcd_draw_point(A+Y, B+0, color);
+        //y轴负方向
+        lcd_draw_point(A-Y, B-0, color);
+
+        //在第一象限遍历每个点
+        while (X < Y)
+        {
+            X++;
+            if(d<0) //东方衍生新像素点
+            {
+                d += 2*X+1;
+            }
+            else    //东南方衍生新像素点
+            {
+                Y--;
+                d += 2*X-2*Y+1;
+            }
+            //画出这个点对应的8个点
+            lcd_draw_point(A+X, B+Y, color); 
+            lcd_draw_point(A+Y, B+X, color); 
+            lcd_draw_point(A-X, B-Y,  color); 
+            lcd_draw_point(A-Y, B-X,  color);
+            lcd_draw_point(A+X, B-Y, color);
+            lcd_draw_point(A+Y, B-X, color);
+            lcd_draw_point(A-X, B+Y, color);
+            lcd_draw_point(A-Y, B+X, color);
+        }
+    }
+    else if(filled == TFT_IS_FILLED)
+    {
+        uint32_t i;
+        uint32_t imax = ((uint32_t)r * 707) / 1000 + 1;
+        uint32_t sqmax = (uint32_t)r * (uint32_t)r + (uint32_t)r / 2;
+        uint32_t xr = r;
+
+        lcd_draw_hline(A - r, B, 2 * r, color);
+
+        for (i = 1; i <= imax; i++)
+        {
+            if ((i * i + xr * xr) > sqmax)
+            {
+                /* draw lines from outside */
+                if (xr > imax)
+                {
+                    lcd_draw_hline (A - i + 1, B + xr, 2 * (i - 1), color);
+                    lcd_draw_hline (A - i + 1, B - xr, 2 * (i - 1), color);
+                }
+
+                xr--;
+            }
+            /* draw lines from inside (center) */
+            lcd_draw_hline(A - xr, B+ i, 2 * xr, color);
+            lcd_draw_hline(A - xr, B - i, 2 * xr, color);
+        }
+    }
+    // ESP_LOGI(TAG, "Draw Circle OK!");
+}
+
+
+/* LCD的画笔颜色和背景色 */
+uint32_t g_point_color = 0XF800;    /* 画笔颜色 */
+uint32_t g_back_color  = 0XFFFF;    /* 背景色 */
+/**
+ * @brief       在指定位置显示一个字符
+ * @param       x,y  : 坐标
+ * @param       chr  : 要显示的字符:" "--->"~"
+ * @param       size : 字体大小 12/16/24/32
+ * @param       mode : 叠加方式(1); 非叠加方式(0);
+ * @param       color : 字符的颜色;
+ * @retval      无
+ */
+void lcd_show_char(uint16_t x, uint16_t y, uint32_t chr, uint8_t size, uint8_t mode, uint16_t color)
+{
+    uint8_t temp, t1, t;
+    uint16_t y0 = y;
+    uint8_t csize = 0;
+    uint8_t *pfont = 0;
+
+    csize = (size / 8 + ((size % 8) ? 1 : 0)) * (size / 2); /* 得到字体一个字符对应点阵集所占的字节数 */
+    chr = chr - ' ';    /* 得到偏移后的值（ASCII字库是从空格开始取模，所以-' '就是对应字符的字库） */
+
+    switch (size)
+    {
+        case 12:
+            pfont = (uint8_t *)asc2_1206[chr];  /* 调用1206字体 */
+            break;
+
+        case 16:
+            pfont = (uint8_t *)asc2_1608[chr];  /* 调用1608字体 */
+            break;
+
+        case 24:
+        //     pfont = (uint8_t *)asc2_2412[chr];  /* 调用2412字体 */
+            break;
+
+        case 32:
+        //     pfont = (uint8_t *)asc2_3216[chr];  /* 调用3216字体 */
+            break;
+
+        default:
+            return ;
+    }
+
+    for (t = 0; t < csize; t++)
+    {
+        temp = pfont[t];    /* 获取字符的点阵数据 */
+
+        for (t1 = 0; t1 < 8; t1++)   /* 一个字节8个点 */
+        {
+            if (temp & 0x80)        /* 有效点,需要显示 */
+            {
+                lcd_draw_point(x, y, color);        /* 画点出来,要显示这个点 */
+            }
+            else if (mode == 0)     /* 无效点,不显示 */
+            {
+                lcd_draw_point(x, y, g_back_color); /* 画背景色,相当于这个点不显示(注意背景色由全局变量控制) */
+            }
+
+            temp <<= 1; /* 移位, 以便获取下一个位的状态 */
+            y++;
+
+            if (y >= lcd_tft.height)return;  /* 超区域了 */
+
+            if ((y - y0) == size)   /* 显示完一列了? */
+            {
+                y = y0; /* y坐标复位 */
+                x++;    /* x坐标递增 */
+
+                if (x >= lcd_tft.width)return;   /* x坐标超区域了 */
+
+                break;
+            }
+        }
+    }
 }

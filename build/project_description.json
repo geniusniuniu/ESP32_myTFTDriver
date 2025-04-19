@@ -1,7 +1,7 @@
 {
     "version":            "1.1",
     "project_name":       "05_SPI",
-    "project_version":    "1",
+    "project_version":    "87b56f3-dirty",
     "project_path":       "/home/gyy123/esp/testDir/05_spi",
     "idf_path":           "/home/gyy123/esp/esp-idf",
     "build_dir":          "/home/gyy123/esp/testDir/05_spi/build",
