@@ -41,6 +41,9 @@ void app_main(void)
     ESP_LOGI(TAG,"START");
     lcd_show_char(50,50,'A',16,0,BLACK);
     ESP_LOGI(TAG,"END");
+    //显示一个字符串
+    lcd_show_string(50,100,"Hello World",16,BLACK);
+    lcd_show_string(50,120,"Hello genius_niuniu",12,BLACK);
 //    xTaskCreatePinnedToCore(tft_show,"tft_lcd",2048,NULL,5,NULL,0);
 }  
 

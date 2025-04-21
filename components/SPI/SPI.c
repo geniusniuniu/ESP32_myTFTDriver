@@ -81,7 +81,7 @@ void lcd_init(spi_device_handle_t spi_handle)
 	lcd_cmd(spi_handle,0xC7,false);
 	lcd_data(spi_handle, (uint8_t[]){0xB7}, 1);
 	lcd_cmd(spi_handle,0x36,false);
-	lcd_data(spi_handle, (uint8_t[]){0x48}, 1);
+	lcd_data(spi_handle, (uint8_t[]){0x48}, 2);
 	lcd_cmd(spi_handle,0x3A,false);
 	lcd_data(spi_handle, (uint8_t[]){0x55}, 1);
 	lcd_cmd(spi_handle,0xB1,false);
@@ -241,7 +241,7 @@ void lcd_scan_dir(uint8_t dir)
     uint16_t dirreg = 0x36;
     if(dir == L2R_U2D)
     {
-         regval |= (0 << 7) | (0 << 6) | (0 << 5);
+         regval |= (0 << 7) | (1 << 6) | (0 << 5);
     }
     regval |= 0X00;
     lcd_write_reg(dirreg, (uint8_t *)&regval);
@@ -610,3 +610,24 @@ void lcd_show_char(uint16_t x, uint16_t y, uint32_t chr, uint8_t size, uint8_t m
         }
     }
 }
+
+
+//      显示字符串
+void lcd_show_string(uint16_t x, uint16_t y, const char *str, uint8_t size, uint16_t color) 
+{  
+    while ((*str >= ' ') && (*str <= '~')) 
+    {  
+        if (x >= lcd_tft.width) 
+        {  
+            x = 0; // 如果超出屏幕宽度，则换行（可选，视需求而定）  
+            y += size; // 换行时的纵向移动  
+            if (y >= lcd_tft.height) 
+            {  
+                y = 0; // 如果超出屏幕高度，换行到开始（可选）  
+            }  
+        }  
+        lcd_show_char(x, y, *str, size, 0, color);  // 显示字符
+        x += size / 2;
+        str++;  
+    }  
+}  
