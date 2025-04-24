@@ -619,7 +619,7 @@ void lcd_show_string(uint16_t x, uint16_t y, const char *str, uint8_t size, uint
     {  
         if (x >= lcd_tft.width) 
         {  
-            x = 0; // 如果超出屏幕宽度，则换行（可选，视需求而定）  
+            x = 0; // 如果超出屏幕宽度，则换行
             y += size; // 换行时的纵向移动  
             if (y >= lcd_tft.height) 
             {  
